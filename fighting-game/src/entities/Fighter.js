@@ -10,6 +10,7 @@ export const FighterState = {
   ATTACK: "attack",
   HIT: "hit",
   DEAD: "dead",
+  BLOCK: "block",
 };
 
 export default class Fighter {
@@ -36,7 +37,6 @@ export default class Fighter {
     this.health = 100;
     this.isAlive = true;
 
-    // 🔥 ENERGIA (ADICIONADO)
     this.energy = 0;
     this.maxEnergy = 100;
 
@@ -110,6 +110,11 @@ export default class Fighter {
 
   takeDamage(amount) {
     if (!this.isAlive) return;
+
+    // 🔥 REDUZ DANO NO BLOCK
+    if (this.state === "block") {
+      amount *= 0.3;
+    }
 
     this.health -= amount;
 
@@ -198,12 +203,32 @@ export default class Fighter {
 
     const now = performance.now() / 1000;
 
-    const leftPressed = this.keyboard.isPressed(this.controls.left);
-    const rightPressed = this.keyboard.isPressed(this.controls.right);
+    const leftPressed =
+      (this.input && this.input.left) ||
+      this.keyboard.isPressed(this.controls.left);
 
-    const attackPressed = this.keyboard.isJustPressed(this.controls.attack);
-    const kickPressed = this.keyboard.isJustPressed(this.controls.kick);
-    const specialPressed = this.keyboard.isJustPressed(this.controls.special);
+    const rightPressed =
+      (this.input && this.input.right) ||
+      this.keyboard.isPressed(this.controls.right);
+
+    const attackPressed =
+      (this.input && this.input.attack) ||
+      this.keyboard.isJustPressed(this.controls.attack);
+
+    const kickPressed =
+      (this.input && this.input.kick) ||
+      this.keyboard.isJustPressed(this.controls.kick);
+
+    const specialPressed =
+      (this.input && this.input.special) ||
+      this.keyboard.isJustPressed(this.controls.special);
+
+    const jumpPressed =
+      (this.input && this.input.jump) ||
+      this.keyboard.isPressed(this.controls.jump);
+
+    const blockPressed =
+      (this.input && this.input.block);
 
     this.animTimer += deltaTime;
 
@@ -232,6 +257,12 @@ export default class Fighter {
           this.isOnGround ? FighterState.IDLE : FighterState.JUMP
         );
       }
+    }
+
+    if (blockPressed && this.isOnGround) {
+      this.currentAnimation = "idle";
+      this.setState(FighterState.BLOCK);
+      return;
     }
 
     if (
@@ -294,10 +325,7 @@ export default class Fighter {
         this.setState(FighterState.IDLE);
       }
 
-      if (
-        this.keyboard.isPressed(this.controls.jump) &&
-        this.isOnGround
-      ) {
+      if (jumpPressed && this.isOnGround) {
 
         this.velocityY = -SETTINGS.jumpForce;
         this.isOnGround = false;
@@ -445,7 +473,7 @@ export default class Fighter {
 
     ctx.restore();
 
-    // 🔥 DEBUG DESATIVADO (comentado, NÃO removido)
+    // 🔥 DEBUG DESATIVADO
     // if (this.hitbox) {
     //   this.hitbox.render(ctx);
     // }

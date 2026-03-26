@@ -13,8 +13,9 @@ import CameraSystem from "../systems/CameraSystem.js";
 import HUDSystem from "../systems/HUDSystem.js";
 import TimerSystem from "../systems/TimerSystem.js";
 import RoundSystem from "../systems/RoundSystem.js";
-import SlowMotionSystem from "../systems/SlowMotionSystem.js"; // 🔥 ADICIONADO
-import ImpactBackground from "../systems/ImpactBackground.js"; // 🔥 ADICIONADO
+import SlowMotionSystem from "../systems/SlowMotionSystem.js";
+import ImpactBackground from "../systems/ImpactBackground.js";
+import AISystem from "../systems/AISystem.js"; // 🔥 ADICIONADO
 
 export default class Game {
   constructor() {
@@ -74,7 +75,7 @@ export default class Game {
 
   update(deltaTime) {
 
-    // 🔥 SLOW MOTION (ADICIONADO)
+    // 🔥 SLOW MOTION
     deltaTime = SlowMotionSystem.getDeltaTime(deltaTime);
 
     const isKO = KOSystem.isKO;
@@ -87,8 +88,13 @@ export default class Game {
 
       if (!isFrozen) {
         this.player1.update(deltaTime);
+
+        // player2 agora é CPU → não usa teclado
         this.player2.update(deltaTime);
       }
+
+      // 🔥 IA CONTROLANDO PLAYER 2
+      AISystem.update(this.player2, this.player1, deltaTime);
 
       // direção
       if (this.player1.x < this.player2.x) {
@@ -132,7 +138,6 @@ export default class Game {
     FreezeSystem.update(deltaTime);
     KOSystem.update(deltaTime);
 
-    // 🔥 SISTEMAS ADICIONADOS
     SlowMotionSystem.update(deltaTime);
     ImpactBackground.update(deltaTime);
 
@@ -185,7 +190,6 @@ export default class Game {
 
     TimerSystem.render(ctx, this.canvas.width);
 
-    // 🔥 IMPACT BACKGROUND (ADICIONADO)
     ImpactBackground.render(
       ctx,
       this.canvas.width,
