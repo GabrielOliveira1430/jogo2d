@@ -1,81 +1,126 @@
 export default class HUDSystem {
 
-  static render(ctx, player1, player2, canvasWidth) {
+  // 🔥 vida animada (efeito MK)
+  static displayHealth1 = 100;
+  static displayHealth2 = 100;
+
+  static update(deltaTime, p1, p2) {
+
+    // 🔥 delay na redução da vida (efeito clássico)
+    const speed = 60 * deltaTime;
+
+    if (this.displayHealth1 > p1.health) {
+      this.displayHealth1 -= speed;
+      if (this.displayHealth1 < p1.health) {
+        this.displayHealth1 = p1.health;
+      }
+    }
+
+    if (this.displayHealth2 > p2.health) {
+      this.displayHealth2 -= speed;
+      if (this.displayHealth2 < p2.health) {
+        this.displayHealth2 = p2.health;
+      }
+    }
+  }
+
+  static getHealthColor(health) {
+    if (health > 60) return "#00ff00"; // verde
+    if (health > 30) return "#ffff00"; // amarelo
+    return "#ff0000"; // vermelho
+  }
+
+  static render(ctx, p1, p2, width) {
+
+    const barWidth = 250;
+    const barHeight = 20;
+    const top = 30;
 
     ctx.save();
 
+    // 🔥 HUD fixo (sem câmera)
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    const margin = 20;
-    const barWidth = 250;
-    const barHeight = 20;
+    // =========================
+    // PLAYER 1
+    // =========================
+    const p1HealthPercent = p1.health / 100;
+    const p1DisplayPercent = this.displayHealth1 / 100;
 
-    // ========================
-    // VIDA PLAYER 1
-    // ========================
-    ctx.fillStyle = "red";
-    ctx.fillRect(margin, margin, barWidth, barHeight);
+    // fundo
+    ctx.fillStyle = "#222";
+    ctx.fillRect(50, top, barWidth, barHeight);
 
-    ctx.fillStyle = "green";
+    // dano atrasado (vermelho escuro)
+    ctx.fillStyle = "#550000";
     ctx.fillRect(
-      margin,
-      margin,
-      (barWidth * player1.health) / 100,
+      50,
+      top,
+      barWidth * p1DisplayPercent,
       barHeight
     );
 
-    // ========================
-    // VIDA PLAYER 2
-    // ========================
-    ctx.fillStyle = "red";
+    // vida atual
+    ctx.fillStyle = this.getHealthColor(p1.health);
     ctx.fillRect(
-      canvasWidth - barWidth - margin,
-      margin,
-      barWidth,
+      50,
+      top,
+      barWidth * p1HealthPercent,
       barHeight
     );
 
-    ctx.fillStyle = "green";
-    ctx.fillRect(
-      canvasWidth - margin - (barWidth * player2.health) / 100,
-      margin,
-      (barWidth * player2.health) / 100,
-      barHeight
-    );
+    // borda
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(50, top, barWidth, barHeight);
 
-    // ========================
-    // ⚡ ENERGIA PLAYER 1
-    // ========================
-    ctx.fillStyle = "gray";
-    ctx.fillRect(margin, margin + 30, barWidth, 10);
-
+    // nome
     ctx.fillStyle = "cyan";
+    ctx.font = "16px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("PLAYER 1", 50, top - 5);
+
+    // =========================
+    // PLAYER 2
+    // =========================
+    const p2HealthPercent = p2.health / 100;
+    const p2DisplayPercent = this.displayHealth2 / 100;
+
+    // fundo
+    ctx.fillStyle = "#222";
+    ctx.fillRect(width - 300, top, barWidth, barHeight);
+
+    // dano atrasado
+    ctx.fillStyle = "#550000";
     ctx.fillRect(
-      margin,
-      margin + 30,
-      (barWidth * player1.energy) / player1.maxEnergy,
-      10
+      width - 300,
+      top,
+      barWidth * p2DisplayPercent,
+      barHeight
     );
 
-    // ========================
-    // ⚡ ENERGIA PLAYER 2
-    // ========================
-    ctx.fillStyle = "gray";
+    // vida atual (invertida)
+    ctx.fillStyle = this.getHealthColor(p2.health);
     ctx.fillRect(
-      canvasWidth - barWidth - margin,
-      margin + 30,
-      barWidth,
-      10
+      width - 300,
+      top,
+      barWidth * p2HealthPercent,
+      barHeight
     );
 
-    ctx.fillStyle = "cyan";
-    ctx.fillRect(
-      canvasWidth - margin - (barWidth * player2.energy) / player2.maxEnergy,
-      margin + 30,
-      (barWidth * player2.energy) / player2.maxEnergy,
-      10
-    );
+    // borda
+    ctx.strokeStyle = "white";
+    ctx.strokeRect(width - 300, top, barWidth, barHeight);
+
+    // nome
+    ctx.fillStyle = "orange";
+    ctx.textAlign = "right";
+    ctx.fillText("PLAYER 2", width - 50, top - 5);
 
     ctx.restore();
+  }
+
+  static reset() {
+    this.displayHealth1 = 100;
+    this.displayHealth2 = 100;
   }
 }

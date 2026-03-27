@@ -11,6 +11,7 @@ export const FighterState = {
   HIT: "hit",
   DEAD: "dead",
   BLOCK: "block",
+  FATALITY: "fatality",
 };
 
 export default class Fighter {
@@ -31,6 +32,7 @@ export default class Fighter {
     this.height = height;
     this.speed = speed;
 
+    // 🔥 CONTROLE AGORA VEM DO GAME.JS (CORRETO)
     this.controls = controls;
     this.keyboard = keyboard;
 
@@ -94,7 +96,6 @@ export default class Fighter {
     if (!this.currentMove) return false;
 
     const activeFrames = this.currentMove.activeFrames;
-
     if (!activeFrames) return true;
 
     return activeFrames.includes(this.animFrame);
@@ -111,8 +112,7 @@ export default class Fighter {
   takeDamage(amount) {
     if (!this.isAlive) return;
 
-    // 🔥 REDUZ DANO NO BLOCK
-    if (this.state === "block") {
+    if (this.state === FighterState.BLOCK) {
       amount *= 0.3;
     }
 
@@ -133,7 +133,11 @@ export default class Fighter {
   executeMove(moveName) {
 
     const move = MOVES[moveName];
-    if (!move) return;
+
+    if (!move) {
+      console.warn("Move não encontrado:", moveName);
+      return;
+    }
 
     this.currentMove = move;
 
@@ -146,21 +150,21 @@ export default class Fighter {
 
     const hitboxX =
       direction === 1
-        ? this.x + this.width + move.offsetX
-        : this.x - move.width - move.offsetX;
+        ? this.x + this.width + (move.offsetX || 0)
+        : this.x - move.width - (move.offsetX || 0);
 
     this.hitbox = new Hitbox({
       x: hitboxX,
-      y: this.y - this.height + move.offsetY,
+      y: this.y - this.height + (move.offsetY || 0),
       width: move.width,
       height: move.height,
-      damage: move.damage,
+      damage: move.damage || 5,
       direction: direction,
-      knockback: move.knockback
+      knockback: move.knockback || 100
     });
 
-    this.attackTimer = move.duration;
-    this.attackCooldown = move.cooldown;
+    this.attackTimer = move.duration || 0.3;
+    this.attackCooldown = move.cooldown || 0.3;
 
     this.setState(FighterState.ATTACK);
   }
@@ -173,29 +177,17 @@ export default class Fighter {
 
     this.hitbox.x =
       direction === 1
-        ? this.x + this.width + move.offsetX
-        : this.x - move.width - move.offsetX;
+        ? this.x + this.width + (move.offsetX || 0)
+        : this.x - move.width - (move.offsetX || 0);
 
-    this.hitbox.y = this.y - this.height + move.offsetY;
-
+    this.hitbox.y = this.y - this.height + (move.offsetY || 0);
     this.hitbox.active = this.isHitActive();
   }
 
   update(deltaTime) {
 
     if (!this.isAlive) {
-
-      this.animTimer += deltaTime;
-
-      if (this.animTimer > this.animSpeed) {
-        this.animFrame++;
-        this.animTimer = 0;
-
-        if (this.animFrame >= this.totalFrames) {
-          this.animFrame = this.totalFrames - 1;
-        }
-      }
-
+      this.animateDeath(deltaTime);
       return;
     }
 
@@ -203,130 +195,36 @@ export default class Fighter {
 
     const now = performance.now() / 1000;
 
-    const leftPressed =
-      (this.input && this.input.left) ||
-      this.keyboard.isPressed(this.controls.left);
+    const leftPressed = this.keyboard.isPressed(this.controls.left);
+    const rightPressed = this.keyboard.isPressed(this.controls.right);
 
-    const rightPressed =
-      (this.input && this.input.right) ||
-      this.keyboard.isPressed(this.controls.right);
+    const attackPressed = this.keyboard.isJustPressed(this.controls.attack);
+    const kickPressed = this.keyboard.isJustPressed(this.controls.kick);
+    const specialPressed = this.keyboard.isJustPressed(this.controls.special);
 
-    const attackPressed =
-      (this.input && this.input.attack) ||
-      this.keyboard.isJustPressed(this.controls.attack);
+    const jumpPressed = this.keyboard.isPressed(this.controls.jump);
 
-    const kickPressed =
-      (this.input && this.input.kick) ||
-      this.keyboard.isJustPressed(this.controls.kick);
-
-    const specialPressed =
-      (this.input && this.input.special) ||
-      this.keyboard.isJustPressed(this.controls.special);
-
-    const jumpPressed =
-      (this.input && this.input.jump) ||
-      this.keyboard.isPressed(this.controls.jump);
-
-    const blockPressed =
-      (this.input && this.input.block);
-
-    this.animTimer += deltaTime;
-
-    if (this.animTimer > this.animSpeed) {
-      this.animFrame++;
-      this.animTimer = 0;
-
-      if (this.state === FighterState.ATTACK) {
-        if (this.animFrame >= this.totalFrames) {
-          this.animFrame = this.totalFrames - 1;
-        }
-      } else {
-        if (this.animFrame >= this.totalFrames) {
-          this.animFrame = 0;
-        }
-      }
-    }
+    this.updateAnimation(deltaTime);
 
     if (this.state === FighterState.HIT) {
-
       this.hitTimer -= deltaTime;
-
       if (this.hitTimer <= 0) {
-        this.currentAnimation = "idle";
-        this.setState(
-          this.isOnGround ? FighterState.IDLE : FighterState.JUMP
-        );
+        this.setState(this.isOnGround ? FighterState.IDLE : FighterState.JUMP);
       }
     }
 
-    if (blockPressed && this.isOnGround) {
-      this.currentAnimation = "idle";
-      this.setState(FighterState.BLOCK);
-      return;
-    }
-
-    if (
-      this.state !== FighterState.ATTACK &&
-      this.state !== FighterState.HIT
-    ) {
+    if (this.state !== FighterState.ATTACK && this.state !== FighterState.HIT) {
 
       if (leftPressed) {
-
-        if (!this.leftWasPressed) {
-
-          if (now - this.lastLeftTap < this.doubleTapTime) {
-            this.dashTimer = this.dashDuration;
-          }
-
-          this.lastLeftTap = now;
-        }
-
-        this.velocityX =
-          this.dashTimer > 0
-            ? -this.dashSpeed
-            : -this.speed;
-
-        this.direction = -1;
-
-        if (this.isOnGround) {
-          this.currentAnimation = "walk";
-          this.setState(FighterState.WALK);
-        }
-
-      }
-
-      else if (rightPressed) {
-
-        if (!this.rightWasPressed) {
-
-          if (now - this.lastRightTap < this.doubleTapTime) {
-            this.dashTimer = this.dashDuration;
-          }
-
-          this.lastRightTap = now;
-        }
-
-        this.velocityX =
-          this.dashTimer > 0
-            ? this.dashSpeed
-            : this.speed;
-
-        this.direction = 1;
-
-        if (this.isOnGround) {
-          this.currentAnimation = "walk";
-          this.setState(FighterState.WALK);
-        }
-
-      }
-
-      else if (this.isOnGround) {
+        this.handleMove(-1, now);
+      } else if (rightPressed) {
+        this.handleMove(1, now);
+      } else if (this.isOnGround) {
         this.currentAnimation = "idle";
         this.setState(FighterState.IDLE);
       }
 
       if (jumpPressed && this.isOnGround) {
-
         this.velocityY = -SETTINGS.jumpForce;
         this.isOnGround = false;
         this.currentAnimation = "jump";
@@ -334,72 +232,23 @@ export default class Fighter {
       }
     }
 
-    if (
-      this.attackCooldown <= 0 &&
-      this.state !== FighterState.ATTACK
-    ) {
+    if (this.attackCooldown <= 0 && this.state !== FighterState.ATTACK) {
 
       if (!this.isOnGround && attackPressed) {
         this.executeMove("airAttack");
-      }
-      else if (kickPressed) {
+      } else if (kickPressed) {
         this.executeMove("kick");
-      }
-      else if (attackPressed) {
+      } else if (attackPressed) {
         this.executeMove("punch");
-      }
-      else if (specialPressed && this.energy >= 50) {
-
+      } else if (specialPressed && this.energy >= 50) {
         this.energy -= 50;
-
         this.executeMove("special");
       }
     }
 
-    this.attackCooldown -= deltaTime;
-    if (this.attackCooldown < 0) this.attackCooldown = 0;
+    this.updateTimers(deltaTime);
 
-    if (this.attackTimer > 0) {
-
-      this.attackTimer -= deltaTime;
-
-      this.updateHitbox();
-
-      if (this.attackTimer <= 0) {
-        this.hitbox = null;
-        this.currentMove = null;
-
-        this.currentAnimation = "idle";
-
-        this.setState(
-          this.isOnGround ? FighterState.IDLE : FighterState.JUMP
-        );
-      }
-    }
-
-    if (this.dashTimer > 0) {
-      this.dashTimer -= deltaTime;
-    }
-
-    this.x += this.velocityX * deltaTime;
-
-    this.velocityY += SETTINGS.gravity * deltaTime;
-    this.y += this.velocityY * deltaTime;
-
-    if (this.y >= SETTINGS.groundY) {
-
-      this.y = SETTINGS.groundY;
-      this.velocityY = 0;
-      this.isOnGround = true;
-
-      if (this.state === FighterState.JUMP) {
-        this.currentAnimation = "idle";
-        this.setState(FighterState.IDLE);
-      }
-    }
-
-    this.leftWasPressed = leftPressed;
-    this.rightWasPressed = rightPressed;
+    this.applyPhysics(deltaTime);
 
     this.hurtbox.update(
       this.x,
@@ -409,25 +258,110 @@ export default class Fighter {
     );
   }
 
+  handleMove(dir, now) {
+
+    if (dir === -1) {
+      if (!this.leftWasPressed && now - this.lastLeftTap < this.doubleTapTime) {
+        this.dashTimer = this.dashDuration;
+      }
+      this.lastLeftTap = now;
+    } else {
+      if (!this.rightWasPressed && now - this.lastRightTap < this.doubleTapTime) {
+        this.dashTimer = this.dashDuration;
+      }
+      this.lastRightTap = now;
+    }
+
+    this.velocityX =
+      this.dashTimer > 0
+        ? dir * this.dashSpeed
+        : dir * this.speed;
+
+    this.direction = dir;
+
+    if (this.isOnGround) {
+      this.currentAnimation = "walk";
+      this.setState(FighterState.WALK);
+    }
+
+    this.leftWasPressed = dir === -1;
+    this.rightWasPressed = dir === 1;
+  }
+
+  updateAnimation(deltaTime) {
+    this.animTimer += deltaTime;
+
+    if (this.animTimer > this.animSpeed) {
+      this.animFrame++;
+      this.animTimer = 0;
+
+      if (this.animFrame >= this.totalFrames) {
+        this.animFrame = this.state === FighterState.ATTACK
+          ? this.totalFrames - 1
+          : 0;
+      }
+    }
+  }
+
+  updateTimers(deltaTime) {
+
+    this.attackCooldown = Math.max(0, this.attackCooldown - deltaTime);
+
+    if (this.attackTimer > 0) {
+      this.attackTimer -= deltaTime;
+      this.updateHitbox();
+
+      if (this.attackTimer <= 0) {
+        this.hitbox = null;
+        this.currentMove = null;
+        this.currentAnimation = "idle";
+        this.setState(this.isOnGround ? FighterState.IDLE : FighterState.JUMP);
+      }
+    }
+
+    if (this.dashTimer > 0) {
+      this.dashTimer -= deltaTime;
+    }
+  }
+
+  applyPhysics(deltaTime) {
+
+    this.x += this.velocityX * deltaTime;
+
+    this.velocityY += SETTINGS.gravity * deltaTime;
+    this.y += this.velocityY * deltaTime;
+
+    if (this.y >= SETTINGS.groundY) {
+      this.y = SETTINGS.groundY;
+      this.velocityY = 0;
+      this.isOnGround = true;
+
+      if (this.state === FighterState.JUMP) {
+        this.currentAnimation = "idle";
+        this.setState(FighterState.IDLE);
+      }
+    }
+  }
+
+  animateDeath(deltaTime) {
+    this.animTimer += deltaTime;
+
+    if (this.animTimer > this.animSpeed) {
+      this.animFrame++;
+      this.animTimer = 0;
+
+      if (this.animFrame >= this.totalFrames) {
+        this.animFrame = this.totalFrames - 1;
+      }
+    }
+  }
+
   render(ctx) {
 
     const drawX = this.x;
     const drawY = this.y - this.height;
 
-    let sprite = this.sprites.idle;
-
-    if (this.state === FighterState.ATTACK) {
-      sprite = this.sprites[this.currentAnimation] || this.sprites.idle;
-    }
-    else if (this.state === FighterState.HIT) {
-      sprite = this.sprites.hit || this.sprites.idle;
-    }
-    else if (this.state === FighterState.DEAD) {
-      sprite = this.sprites.dead || this.sprites.idle;
-    }
-    else {
-      sprite = this.sprites[this.state] || this.sprites.idle;
-    }
+    let sprite = this.sprites[this.currentAnimation] || this.sprites.idle;
 
     const col = this.animFrame % this.columns;
     const row = Math.floor(this.animFrame / this.columns);
@@ -437,47 +371,31 @@ export default class Fighter {
 
     ctx.save();
 
-    if (sprite) {
-
-      if (this.direction === -1) {
-
-        ctx.scale(-1, 1);
-
-        ctx.drawImage(
-          sprite,
-          sx,
-          sy,
-          this.frameWidth,
-          this.frameHeight,
-          -drawX - this.width,
-          drawY,
-          this.width,
-          this.height
-        );
-
-      } else {
-
-        ctx.drawImage(
-          sprite,
-          sx,
-          sy,
-          this.frameWidth,
-          this.frameHeight,
-          drawX,
-          drawY,
-          this.width,
-          this.height
-        );
-      }
+    if (this.direction === -1) {
+      ctx.scale(-1, 1);
+      ctx.drawImage(
+        sprite,
+        sx, sy,
+        this.frameWidth,
+        this.frameHeight,
+        -drawX - this.width,
+        drawY,
+        this.width,
+        this.height
+      );
+    } else {
+      ctx.drawImage(
+        sprite,
+        sx, sy,
+        this.frameWidth,
+        this.frameHeight,
+        drawX,
+        drawY,
+        this.width,
+        this.height
+      );
     }
 
     ctx.restore();
-
-    // 🔥 DEBUG DESATIVADO
-    // if (this.hitbox) {
-    //   this.hitbox.render(ctx);
-    // }
-
-    // this.hurtbox.render(ctx);
   }
 }

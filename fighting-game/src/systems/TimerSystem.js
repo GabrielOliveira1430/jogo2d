@@ -3,6 +3,9 @@ export default class TimerSystem {
   static time = 99;
   static isRunning = true;
 
+  // 🔥 callback opcional
+  static onTimeUp = null;
+
   static update(deltaTime) {
 
     if (!this.isRunning) return;
@@ -12,6 +15,11 @@ export default class TimerSystem {
     if (this.time <= 0) {
       this.time = 0;
       this.isRunning = false;
+
+      // 🔥 dispara UMA VEZ
+      if (this.onTimeUp) {
+        this.onTimeUp();
+      }
     }
   }
 
@@ -19,7 +27,6 @@ export default class TimerSystem {
 
     ctx.save();
 
-    // 🔥 NÃO sofre zoom/câmera
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     ctx.fillStyle = "white";
