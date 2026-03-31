@@ -1,3 +1,5 @@
+import FatalitySystem from "./FatalitySystem.js";
+
 export default class KOSystem {
 
   static isKO = false;
@@ -18,15 +20,28 @@ export default class KOSystem {
   static update(deltaTime) {
     if (!this.isKO) return;
 
+    // 🔥 proteção
+    if (typeof deltaTime !== "number") return;
+
+    // 🔥 NÃO INTERFERE DURANTE FATALITY
+    if (FatalitySystem.active) return;
+
     this.timer -= deltaTime;
+
+    // 🔥 auto reset (evita estado preso)
+    if (this.timer <= -1) {
+      this.reset();
+    }
   }
 
   static render(ctx, canvasWidth, canvasHeight) {
     if (!this.isKO) return;
 
+    // 🔥 NÃO MOSTRA DURANTE FATALITY
+    if (FatalitySystem.active) return;
+
     ctx.save();
 
-    // 🔥 GARANTE QUE DESENHA NA TELA (IGNORA SHAKE E MOVIMENTO)
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     // fundo escuro

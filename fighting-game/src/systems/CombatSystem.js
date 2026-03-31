@@ -3,15 +3,19 @@ import ParticleSystem from "./ParticleSystem.js";
 import ScreenShake from "./ScreenShake.js";
 import FreezeSystem from "./FreezeSystem.js";
 import KOSystem from "./KOSystem.js";
-import { MOVES } from "../moves/Moves.js"; // 🔥 NECESSÁRIO PARA DETECTAR ESPECIAL
-import FlashSystem from "./FlashSystem.js"; // 🔥 ADICIONADO
-import ImpactBackground from "./ImpactBackground.js"; // 🔥 ADICIONADO
-import SlowMotionSystem from "./SlowMotionSystem.js"; // 🔥 ADICIONADO
-import CameraSystem from "./CameraSystem.js"; // 🔥 ADICIONADO
+import { MOVES } from "../moves/Moves.js";
+import FlashSystem from "./FlashSystem.js";
+import ImpactBackground from "./ImpactBackground.js";
+import SlowMotionSystem from "./SlowMotionSystem.js";
+import CameraSystem from "./CameraSystem.js";
+import FatalitySystem from "./FatalitySystem.js"; // 🔥 IMPORTANTE
 
 export default class CombatSystem {
 
   static handleAttack(attacker, defender) {
+
+    // 🔥 BLOQUEIO TOTAL DURANTE FATALITY
+    if (FatalitySystem.active) return;
 
     if (!attacker.hitbox || !attacker.hitbox.active) return;
 
@@ -22,13 +26,13 @@ export default class CombatSystem {
       attacker.hitbox.registerHit(defender);
 
       // ========================
-      // DANO (ALTERADO)
+      // DANO
       // ========================
       const damage = attacker.hitbox.damage;
       defender.takeDamage(damage);
 
       // ========================
-      // ⚡ DETECTA ESPECIAL (ADICIONADO)
+      // DETECTA ESPECIAL
       // ========================
       const isSpecial = attacker.currentMove === MOVES.special;
 
@@ -39,49 +43,41 @@ export default class CombatSystem {
       }
 
       // ========================
-      // 🔥 KO (SEM RETURN)
+      // 🔥 KO (CORRIGIDO)
       // ========================
       if (!defender.isAlive && !KOSystem.isKO) {
 
         const winner =
-          attacker === window.game.player1
+          attacker === window.game?.player1
             ? "PLAYER 1"
             : "PLAYER 2";
 
         KOSystem.trigger(winner);
 
-        // impacto final forte
         ScreenShake.start(0.5, 15);
+
+        // 🔥 IMPORTANTE: PARA AQUI (EVITA BUGS)
+        return;
       }
 
       // ========================
-      // RESTO NORMAL (ALTERADO)
+      // IMPACTOS
       // ========================
       if (isSpecial) {
 
-        // 🔥 SUPER IMPACTO
         FreezeSystem.trigger(0.12);
-
         ScreenShake.start(0.4, 20);
 
-        // 🔥 FLASH
         FlashSystem.trigger(0.08);
-
-        // 🔥 FUNDO IMPACTO
         ImpactBackground.trigger(0.2);
 
-        // 🔥 SLOW MOTION
         SlowMotionSystem.trigger(0.2, 0.3);
-
-        // 🔥 ZOOM IMPACTO
         CameraSystem.impactZoom();
 
-        // 🔥 SOM FORTE
         const specialSound = new Audio("../../assets/sounds/kick.wav");
         specialSound.volume = 1;
         specialSound.play();
 
-        // MAIS PARTÍCULAS
         for (let i = 0; i < 3; i++) {
           ParticleSystem.spawn(
             defender.x + defender.width / 2,
@@ -92,11 +88,13 @@ export default class CombatSystem {
 
       } else {
 
-        // impacto normal
         FreezeSystem.trigger(0.06);
         ScreenShake.start(0.12, 8);
       }
 
+      // ========================
+      // COMBO + PARTÍCULA
+      // ========================
       ComboSystem.registerHit();
 
       ParticleSystem.spawn(
@@ -105,6 +103,9 @@ export default class CombatSystem {
         attacker.hitbox.direction
       );
 
+      // ========================
+      // KNOCKBACK
+      // ========================
       defender.x += attacker.hitbox.direction * attacker.hitbox.knockback;
       defender.velocityY = -120;
 

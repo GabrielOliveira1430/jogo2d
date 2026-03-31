@@ -1,13 +1,29 @@
+import KOSystem from "./KOSystem.js";
+import FatalitySystem from "./FatalitySystem.js";
+
 export default class AISystem {
 
   static thinkTimer = 0;
 
-  // 🔥 dificuldade: "easy", "normal", "hard"
   static difficulty = "normal";
 
   static update(cpu, player, deltaTime) {
 
-    if (!cpu.isAlive) return;
+    // 🔥 trava total se acabou luta ou fatality
+    if (!cpu.isAlive || KOSystem.isKO || FatalitySystem.active) return;
+
+    // 🔥 garante objeto de input
+    if (!cpu.input) {
+      cpu.input = {
+        left: false,
+        right: false,
+        attack: false,
+        kick: false,
+        special: false,
+        jump: false,
+        block: false
+      };
+    }
 
     this.thinkTimer -= deltaTime;
 
@@ -22,37 +38,28 @@ export default class AISystem {
     const isLowHealth = cpu.health < 30;
 
     // limpa input
-    cpu.input = {
-      left: false,
-      right: false,
-      attack: false,
-      kick: false,
-      special: false,
-      jump: false,
-      block: false
-    };
+    cpu.input.left = false;
+    cpu.input.right = false;
+    cpu.input.attack = false;
+    cpu.input.kick = false;
+    cpu.input.special = false;
+    cpu.input.jump = false;
+    cpu.input.block = false;
 
-    // ========================
-    // 🛡️ BLOQUEIO (REAÇÃO)
-    // ========================
+    // 🛡️ BLOQUEIO
     if (isPlayerAttacking && absDist < 100) {
-
       if (Math.random() < this.getBlockChance()) {
         cpu.input.block = true;
         return;
       }
     }
 
-    // ========================
-    // 🔴 VIDA BAIXA → DEFENSIVO
-    // ========================
+    // 🔴 VIDA BAIXA
     if (isLowHealth) {
 
-      // recua
       if (distance > 0) cpu.input.left = true;
       else cpu.input.right = true;
 
-      // contra-ataque ocasional
       if (Math.random() < 0.3) {
         cpu.input.attack = true;
       }
@@ -60,15 +67,12 @@ export default class AISystem {
       return;
     }
 
-    // ========================
-    // 🔵 LONGE → APROXIMA
-    // ========================
+    // 🔵 LONGE
     if (absDist > 150) {
 
       if (distance > 0) cpu.input.right = true;
       else cpu.input.left = true;
 
-      // movimento mais humano
       if (Math.random() < 0.15) {
         cpu.input.jump = true;
       }
@@ -76,12 +80,9 @@ export default class AISystem {
       return;
     }
 
-    // ========================
-    // 🟡 MÉDIA DISTÂNCIA (BAIT)
-    // ========================
+    // 🟡 MÉDIA DISTÂNCIA
     if (absDist > 80) {
 
-      // bait (vai e volta)
       if (Math.random() < 0.5) {
         if (distance > 0) cpu.input.right = true;
         else cpu.input.left = true;
@@ -90,7 +91,6 @@ export default class AISystem {
         else cpu.input.right = true;
       }
 
-      // poke
       if (Math.random() < 0.3) {
         cpu.input.attack = true;
       }
@@ -98,13 +98,8 @@ export default class AISystem {
       return;
     }
 
-    // ========================
-    // 🔥 PERTO → COMBATE INTELIGENTE
-    // ========================
-
-    // COUNTER se player atacando
+    // 🔥 PERTO
     if (isPlayerAttacking && Math.random() < this.getCounterChance()) {
-
       cpu.input.kick = true;
       return;
     }
@@ -124,16 +119,11 @@ export default class AISystem {
       cpu.input.jump = true;
     }
 
-    // reposicionamento
     if (Math.random() < 0.25) {
       if (distance > 0) cpu.input.left = true;
       else cpu.input.right = true;
     }
   }
-
-  // ========================
-  // 🎯 DIFICULDADE
-  // ========================
 
   static getThinkSpeed() {
     if (this.difficulty === "easy") return 0.25;

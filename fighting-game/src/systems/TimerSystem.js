@@ -1,14 +1,23 @@
+import FatalitySystem from "./FatalitySystem.js";
+import FinishSystem from "./FinishSystem.js";
+
 export default class TimerSystem {
 
   static time = 99;
   static isRunning = true;
 
-  // 🔥 callback opcional
   static onTimeUp = null;
+  static hasTriggered = false; // 🔥 garante execução única
 
   static update(deltaTime) {
 
+    // 🔥 NÃO RODA DURANTE CINEMÁTICA
+    if (FatalitySystem.active || FinishSystem.active) return;
+
     if (!this.isRunning) return;
+
+    // 🔥 proteção
+    if (typeof deltaTime !== "number") return;
 
     this.time -= deltaTime;
 
@@ -17,7 +26,8 @@ export default class TimerSystem {
       this.isRunning = false;
 
       // 🔥 dispara UMA VEZ
-      if (this.onTimeUp) {
+      if (!this.hasTriggered && this.onTimeUp) {
+        this.hasTriggered = true;
         this.onTimeUp();
       }
     }
@@ -45,5 +55,6 @@ export default class TimerSystem {
   static reset() {
     this.time = 99;
     this.isRunning = true;
+    this.hasTriggered = false; // 🔥 reset correto
   }
 }

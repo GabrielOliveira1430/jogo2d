@@ -25,13 +25,17 @@ export default class FinishSystem {
   static update(deltaTime) {
     if (!this.active) return;
 
+    // 🔥 proteção (evita bug silencioso)
+    if (typeof deltaTime !== "number") return;
+
     this.timer -= deltaTime;
 
     if (this.flash > 0) this.flash -= deltaTime;
     if (this.shake > 0) this.shake -= deltaTime;
 
+    // 🔥 CORREÇÃO IMPORTANTE
     if (this.timer <= 0) {
-      this.active = false;
+      this.reset(); // 👉 antes era só active = false
     }
   }
 
@@ -42,7 +46,7 @@ export default class FinishSystem {
     ctx.fillStyle = "rgba(0,0,0,0.6)";
     ctx.fillRect(0, 0, width, height);
 
-    // 🔥 SPOTLIGHT (gradiente)
+    // 🔥 SPOTLIGHT
     const gradient = ctx.createRadialGradient(
       width / 2,
       height / 2,
@@ -67,7 +71,7 @@ export default class FinishSystem {
       offsetY = (Math.random() - 0.5) * 10;
     }
 
-    // 🔥 TEXTO PULSANDO
+    // 🔥 TEXTO
     ctx.save();
 
     ctx.translate(width / 2 + offsetX, height / 2 + offsetY);

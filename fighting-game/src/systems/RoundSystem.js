@@ -1,5 +1,6 @@
 import TimerSystem from "./TimerSystem.js";
 import KOSystem from "./KOSystem.js";
+import FatalitySystem from "./FatalitySystem.js";
 
 export default class RoundSystem {
 
@@ -10,11 +11,8 @@ export default class RoundSystem {
   static p2Wins = 0;
 
   static state = "intro"; // intro | fighting | result
-  static timer = 2; // tempo de exibição
+  static timer = 2;
 
-  // ========================
-  // INICIAR ROUND
-  // ========================
   static startRound() {
     this.state = "intro";
     this.timer = 2;
@@ -23,12 +21,12 @@ export default class RoundSystem {
     KOSystem.reset();
   }
 
-  // ========================
-  // UPDATE
-  // ========================
   static update(deltaTime, player1, player2) {
 
-    // INTRO (Round 1, Fight)
+    // 🔥 BLOQUEIO TOTAL DURANTE FATALITY
+    if (FatalitySystem.active) return;
+
+    // INTRO
     if (this.state === "intro") {
       this.timer -= deltaTime;
 
@@ -46,7 +44,6 @@ export default class RoundSystem {
         this.state = "result";
         this.timer = 2;
 
-        // registra vitória
         if (KOSystem.winner === "PLAYER 1") this.p1Wins++;
         if (KOSystem.winner === "PLAYER 2") this.p2Wins++;
       }
@@ -60,12 +57,10 @@ export default class RoundSystem {
 
       if (this.timer <= 0) {
 
-        // vitória final?
         if (
           this.p1Wins === Math.ceil(this.maxRounds / 2) ||
           this.p2Wins === Math.ceil(this.maxRounds / 2)
         ) {
-          // reinicia jogo completo
           this.round = 1;
           this.p1Wins = 0;
           this.p2Wins = 0;
@@ -73,7 +68,6 @@ export default class RoundSystem {
           this.round++;
         }
 
-        // reset players
         player1.health = 100;
         player2.health = 100;
 
@@ -83,7 +77,6 @@ export default class RoundSystem {
         player1.x = 150;
         player2.x = 550;
 
-        // 🔥 RESET DE ENERGIA (ADICIONADO)
         player1.energy = 0;
         player2.energy = 0;
 
@@ -92,19 +85,14 @@ export default class RoundSystem {
     }
   }
 
-  // ========================
-  // RENDER
-  // ========================
   static render(ctx, canvasWidth, canvasHeight) {
 
     ctx.save();
-
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
 
-    // INTRO
     if (this.state === "intro") {
 
       ctx.font = "bold 40px Arial";
@@ -124,7 +112,6 @@ export default class RoundSystem {
       );
     }
 
-    // RESULTADO FINAL
     if (this.state === "result") {
 
       ctx.font = "bold 40px Arial";
